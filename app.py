@@ -4,19 +4,22 @@ import numpy as np
 import plotly.express as px
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
+import os
+import gdown
 
 
-# ================= PAGE CONFIG =================
+# PAGE CONFIG
 st.set_page_config(
     page_title="College Recommendation System",
     page_icon="🎓",
     layout="wide"
 )
 
-# ================= UI (UNCHANGED) =================
+# GLOBAL STYLE (UNCHANGED UI)
 st.markdown("""
 <style>
 
+/* PAGE BACKGROUND */
 [data-testid="stAppViewContainer"] {
     background: linear-gradient(135deg, #dbeafe, #eff6ff, #e0f2fe);
 }
@@ -99,17 +102,34 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# ================= LOAD DATA =================
-@st.cache_data
-def load_data():
-    df = pd.read_csv("Recommendation.csv")
-    df = df.reset_index(drop=True)
-    return df
+# LOAD DATA
+CSV_URL = "https://drive.google.com/uc?id=1vnOUt5f6tveyejrgjBvFlw_2LFrtIFGb"
+NPY_URL = "https://drive.google.com/uc?id=1g2bdBPvRCyx6CS3BoLwIPVt7ofjEeuoi"
 
-df = load_data()
+CSV_PATH = "Recommendation.csv"
+NPY_PATH = "review_embeddings.npy"
 
 
-# ================= LOAD MODEL =================
+@st.cache_data(show_spinner=True)
+def download_files():
+
+    if not os.path.exists(CSV_PATH):
+        with st.spinner("Downloading dataset... (first time only)"):
+            gdown.download(CSV_URL, CSV_PATH, quiet=False)
+
+    if not os.path.exists(NPY_PATH):
+        with st.spinner("Downloading embeddings... (first time only)"):
+            gdown.download(NPY_URL, NPY_PATH, quiet=False)
+
+    df = pd.read_csv(CSV_PATH)
+    embeddings = np.load(NPY_PATH)
+
+    return df, embeddings
+
+
+df, review_embeddings = download_files()
+
+
 @st.cache_resource
 def load_model():
     return SentenceTransformer("all-MiniLM-L6-v2")
@@ -117,21 +137,15 @@ def load_model():
 model = load_model()
 
 
-# ================= SEMANTIC FILTER (DYNAMIC EMBEDDING) =================
+# 🔹 SEMANTIC FILTER (REAL FILTER)
 def semantic_filter(df_subset, query, threshold=0.35):
-
     if df_subset.empty:
         return df_subset
 
     query_embedding = model.encode([query])
+    subset_embeddings = review_embeddings[df_subset.index]
 
-    review_embeddings = model.encode(
-        df_subset["Corrected_Text"].fillna("").tolist(),
-        batch_size=64,
-        show_progress_bar=False
-    )
-
-    similarities = cosine_similarity(query_embedding, review_embeddings)[0]
+    similarities = cosine_similarity(query_embedding, subset_embeddings)[0]
 
     df_subset = df_subset.copy()
     df_subset["Similarity"] = similarities
@@ -139,7 +153,7 @@ def semantic_filter(df_subset, query, threshold=0.35):
     return df_subset[df_subset["Similarity"] >= threshold]
 
 
-# ================= INTELLIGENT AGGREGATION =================
+# 🔹 INTELLIGENT AGGREGATION (RELIABILITY BASED)
 def aggregate_college_scores(filtered_df):
 
     college_scores = []
@@ -177,7 +191,7 @@ def aggregate_college_scores(filtered_df):
     return pd.DataFrame(college_scores)
 
 
-# ================= SIDEBAR =================
+# SIDEBAR
 st.sidebar.header("Filter Preferences")
 
 keyword = st.sidebar.text_input("Keywords (Good College,High Placement,Good Faculty)")
@@ -195,7 +209,7 @@ top_n = st.sidebar.slider("Number of Recommendations", 1, 20, 10)
 search = st.sidebar.button("Search Colleges")
 
 
-# ================= SEARCH =================
+# SEARCH LOGIC (UPDATED)
 if search:
 
     filtered = df.copy()
@@ -219,7 +233,7 @@ if search:
     st.session_state.selected_college = None
 
 
-# ================= RESULTS =================
+# RESULTS DISPLAY
 if "results" in st.session_state and st.session_state.results is not None:
 
     ranked = st.session_state.results.reset_index(drop=True)
@@ -243,7 +257,7 @@ if "results" in st.session_state and st.session_state.results is not None:
     st.session_state.selected_college = selected
 
 
-# ================= DETAILS =================
+# COLLEGE DETAILS
 if "selected_college" in st.session_state and st.session_state.selected_college:
 
     college_name = st.session_state.selected_college
@@ -281,6 +295,8 @@ if "selected_college" in st.session_state and st.session_state.selected_college:
             fig.update_layout(
                 plot_bgcolor="rgba(0,0,0,0)",
                 paper_bgcolor="rgba(0,0,0,0)",
+                xaxis_title="Aspects",
+                yaxis_title="Score (Out of 5)",
                 showlegend=False
             )
 
