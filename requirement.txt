@@ -1,8 +1,9 @@
 streamlit
 pandas
 numpy
-plotly
+plotly.express
 scikit-learn
 sentence-transformers
 gdown
 torch
+
