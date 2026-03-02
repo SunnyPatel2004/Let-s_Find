@@ -284,13 +284,12 @@ if "selected_college" in st.session_state and st.session_state.selected_college:
             avg_df = college_df[available].mean().reset_index()
             avg_df.columns = ["Category", "Score"]
         
-            # pre-format labels (fix for deployment rendering)
             avg_df["Label"] = avg_df["Score"].map(lambda x: f"{x:.2f}")
         
             fig = px.bar(
                 avg_df,
                 x="Category",
-                y="Score",
+                y="Label",
                 text="Label",
                 range_y=[0,5],
             )
@@ -329,6 +328,7 @@ if "selected_college" in st.session_state and st.session_state.selected_college:
             short = review[:200] + "..." if len(review) > 200 else review
             with st.expander(short):
                 st.markdown(f'<div class="review-box">{review}</div>', unsafe_allow_html=True)
+
 
 
 
