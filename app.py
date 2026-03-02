@@ -4,21 +4,19 @@ import numpy as np
 import plotly.express as px
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
-import os
-import requests
 
-# PAGE CONFIG
+
+# ================= PAGE CONFIG =================
 st.set_page_config(
     page_title="College Recommendation System",
     page_icon="🎓",
     layout="wide"
 )
 
-# GLOBAL STYLE (UNCHANGED UI)
+# ================= UI (UNCHANGED) =================
 st.markdown("""
 <style>
 
-/* PAGE BACKGROUND */
 [data-testid="stAppViewContainer"] {
     background: linear-gradient(135deg, #dbeafe, #eff6ff, #e0f2fe);
 }
@@ -101,56 +99,17 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# LOAD DATA
-import os
-import requests
-import pandas as pd
-import numpy as np
-import streamlit as st
-
-CSV_URL = "https://drive.google.com/uc?id=13-hCeBPjFaG2ykb22ihESJ4_zpfYsqBq"
-NPY_URL = "https://drive.google.com/uc?id=1ChBVHpr3Cj8QW_rp3j2NtFKBwGzEmBsI"
-
-CSV_FILE = "Recommendation.csv"
-NPY_FILE = "review_embeddings.npy"
-
-
-# Google Drive large file downloader
-def download_file_from_drive(url, filename):
-    if os.path.exists(filename):
-        return
-
-    with st.spinner(f"Downloading {filename} (first run only)..."):
-        session = requests.Session()
-        response = session.get(url, stream=True)
-
-        # handle large-file confirmation
-        for key, value in response.cookies.items():
-            if key.startswith("download_warning"):
-                confirm_url = url + "&confirm=" + value
-                response = session.get(confirm_url, stream=True)
-                break
-
-        with open(filename, "wb") as f:
-            for chunk in response.iter_content(32768):
-                if chunk:
-                    f.write(chunk)
-
-
+# ================= LOAD DATA =================
 @st.cache_data
 def load_data():
-    download_file_from_drive(CSV_URL, CSV_FILE)
-    download_file_from_drive(NPY_URL, NPY_FILE)
-
-    df = pd.read_csv(CSV_FILE)
+    df = pd.read_csv("Recommendation.csv")
     df = df.reset_index(drop=True)
+    return df
 
-    embeddings = np.load(NPY_FILE)
-
-    return df, embeddings
-
+df = load_data()
 
 
+# ================= LOAD MODEL =================
 @st.cache_resource
 def load_model():
     return SentenceTransformer("all-MiniLM-L6-v2")
@@ -158,15 +117,21 @@ def load_model():
 model = load_model()
 
 
-# 🔹 SEMANTIC FILTER (REAL FILTER)
+# ================= SEMANTIC FILTER (DYNAMIC EMBEDDING) =================
 def semantic_filter(df_subset, query, threshold=0.35):
+
     if df_subset.empty:
         return df_subset
 
     query_embedding = model.encode([query])
-    subset_embeddings = review_embeddings[df_subset.index]
 
-    similarities = cosine_similarity(query_embedding, subset_embeddings)[0]
+    review_embeddings = model.encode(
+        df_subset["Corrected_Text"].fillna("").tolist(),
+        batch_size=64,
+        show_progress_bar=False
+    )
+
+    similarities = cosine_similarity(query_embedding, review_embeddings)[0]
 
     df_subset = df_subset.copy()
     df_subset["Similarity"] = similarities
@@ -174,7 +139,7 @@ def semantic_filter(df_subset, query, threshold=0.35):
     return df_subset[df_subset["Similarity"] >= threshold]
 
 
-# 🔹 INTELLIGENT AGGREGATION (RELIABILITY BASED)
+# ================= INTELLIGENT AGGREGATION =================
 def aggregate_college_scores(filtered_df):
 
     college_scores = []
@@ -212,7 +177,7 @@ def aggregate_college_scores(filtered_df):
     return pd.DataFrame(college_scores)
 
 
-# SIDEBAR
+# ================= SIDEBAR =================
 st.sidebar.header("Filter Preferences")
 
 keyword = st.sidebar.text_input("Keywords (Good College,High Placement,Good Faculty)")
@@ -230,7 +195,7 @@ top_n = st.sidebar.slider("Number of Recommendations", 1, 20, 10)
 search = st.sidebar.button("Search Colleges")
 
 
-# SEARCH LOGIC (UPDATED)
+# ================= SEARCH =================
 if search:
 
     filtered = df.copy()
@@ -254,7 +219,7 @@ if search:
     st.session_state.selected_college = None
 
 
-# RESULTS DISPLAY
+# ================= RESULTS =================
 if "results" in st.session_state and st.session_state.results is not None:
 
     ranked = st.session_state.results.reset_index(drop=True)
@@ -278,7 +243,7 @@ if "results" in st.session_state and st.session_state.results is not None:
     st.session_state.selected_college = selected
 
 
-# COLLEGE DETAILS
+# ================= DETAILS =================
 if "selected_college" in st.session_state and st.session_state.selected_college:
 
     college_name = st.session_state.selected_college
@@ -316,8 +281,6 @@ if "selected_college" in st.session_state and st.session_state.selected_college:
             fig.update_layout(
                 plot_bgcolor="rgba(0,0,0,0)",
                 paper_bgcolor="rgba(0,0,0,0)",
-                xaxis_title="Aspects",
-                yaxis_title="Score (Out of 5)",
                 showlegend=False
             )
 
@@ -330,6 +293,3 @@ if "selected_college" in st.session_state and st.session_state.selected_college:
             short = review[:200] + "..." if len(review) > 200 else review
             with st.expander(short):
                 st.markdown(f'<div class="review-box">{review}</div>', unsafe_allow_html=True)
-
-
-
