@@ -1,11 +1,11 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import os
+import gdown
 import plotly.express as px
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
-import os
-import gdown
 
 
 # PAGE CONFIG
@@ -18,20 +18,26 @@ st.set_page_config(
 # GLOBAL STYLE (UNCHANGED UI)
 st.markdown("""
 <style>
-
 /* PAGE BACKGROUND */
 [data-testid="stAppViewContainer"] {
     background: linear-gradient(135deg, #dbeafe, #eff6ff, #e0f2fe);
 }
-
 .block-container {
-    padding-top: 1rem;
-    padding-left: 5rem;
-    padding-right: 5rem;
-    padding-bottom: 3rem;
-    max-width: 1300px;
+    padding: 1.2rem 3vw 2rem 3vw;
+    max-width: 1200px;
 }
-
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .block-container {
+        padding: 1rem 1rem 2rem 1rem;
+    }
+    .hero-title-text {
+        font-size: 32px;
+    }
+    .hero {
+        padding: 40px 25px;
+    }
+}
 .hero {
     background: linear-gradient(120deg, #2563eb, #0ea5e9);
     padding: 70px 60px;
@@ -39,7 +45,6 @@ st.markdown("""
     margin-bottom: 40px;
     box-shadow: 0px 12px 30px rgba(37,99,235,0.25);
 }
-
 .hero-title-text {
     font-size: 48px;
     font-weight: 900;
@@ -48,14 +53,12 @@ st.markdown("""
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
-
 .hero-sub-text {
     margin-top: 15px;
     font-size: 18px;
     font-weight: 500;
     color: #e0f2fe;
 }
-
 .result-card {
     background: white;
     padding: 22px;
@@ -64,7 +67,6 @@ st.markdown("""
     margin-bottom: 18px;
     border-left: 6px solid #0ea5e9;
 }
-
 .profile-section-title {
     font-size: 30px;
     font-weight: 900;
@@ -74,7 +76,6 @@ st.markdown("""
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
-
 .review-box {
     background: linear-gradient(90deg, #f0f9ff, #e0f2fe);
     padding: 18px;
@@ -85,7 +86,6 @@ st.markdown("""
     line-height: 1.7;
     font-size: 14px;
 }
-
 </style>
 """, unsafe_allow_html=True)
 
@@ -103,32 +103,27 @@ st.markdown("""
 
 
 # LOAD DATA
+CSV_PATH = "recommendation.csv"
+NPY_PATH = "review_embeddings.npy"
+
 CSV_URL = "https://drive.google.com/uc?id=1vnOUt5f6tveyejrgjBvFlw_2LFrtIFGb"
 NPY_URL = "https://drive.google.com/uc?id=1g2bdBPvRCyx6CS3BoLwIPVt7ofjEeuoi"
 
-CSV_PATH = "Recommendation.csv"
-NPY_PATH = "review_embeddings.npy"
-
-
-@st.cache_data(show_spinner=True)
 def download_files():
-
     if not os.path.exists(CSV_PATH):
-        with st.spinner("Downloading dataset... (first time only)"):
-            gdown.download(CSV_URL, CSV_PATH, quiet=False)
+        gdown.download(CSV_URL, CSV_PATH, quiet=False)
 
     if not os.path.exists(NPY_PATH):
-        with st.spinner("Downloading embeddings... (first time only)"):
-            gdown.download(NPY_URL, NPY_PATH, quiet=False)
+        gdown.download(NPY_URL, NPY_PATH, quiet=False)
 
+@st.cache_data
+def load_data():
+    download_files()
     df = pd.read_csv(CSV_PATH)
     embeddings = np.load(NPY_PATH)
-
     return df, embeddings
 
-
-df, review_embeddings = download_files()
-
+df, review_embeddings = load_data()
 
 @st.cache_resource
 def load_model():
@@ -165,11 +160,11 @@ def aggregate_college_scores(filtered_df):
             continue
 
         # Reliability Weight
-        if review_count >= 10:
+        if review_count >= 30:
             weight = 1.0
-        elif review_count >= 5:
+        elif review_count >= 10:
             weight = 0.75
-        elif review_count >= 2:
+        elif review_count >= 5:
             weight = 0.5
         else:
             weight = 0.25
@@ -309,5 +304,4 @@ if "selected_college" in st.session_state and st.session_state.selected_college:
             short = review[:200] + "..." if len(review) > 200 else review
             with st.expander(short):
                 st.markdown(f'<div class="review-box">{review}</div>', unsafe_allow_html=True)
-
 
