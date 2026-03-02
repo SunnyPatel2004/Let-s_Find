@@ -4,7 +4,8 @@ import numpy as np
 import plotly.express as px
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
-
+import os
+import requests
 
 # PAGE CONFIG
 st.set_page_config(
@@ -101,14 +102,33 @@ st.markdown("""
 
 
 # LOAD DATA
+CSV_URL = "https://drive.google.com/uc?id=13-hCeBPjFaG2ykb22ihESJ4_zpfYsqBq"
+NPY_URL = "https://drive.google.com/uc?id=1ChBVHpr3Cj8QW_rp3j2NtFKBwGzEmBsI"
+
+CSV_FILE = "Recommendation.csv"
+NPY_FILE = "review_embeddings.npy"
+
+
+def download_file(url, filename):
+    if not os.path.exists(filename):
+        with st.spinner(f"Downloading {filename}... (first run only)"):
+            r = requests.get(url)
+            with open(filename, "wb") as f:
+                f.write(r.content)
+
+
 @st.cache_data
 def load_data():
-    df = pd.read_csv("C:/Users/patel/Desktop/Python/UserInterface/Recommendation.csv")
-    df = df.reset_index(drop=True)
-    embeddings = np.load("C:/Users/patel/Desktop/Python/UserInterface/review_embeddings.npy")
-    return df, embeddings
+    # download files if not present
+    download_file(CSV_URL, CSV_FILE)
+    download_file(NPY_URL, NPY_FILE)
 
-df, review_embeddings = load_data()
+    # load normally
+    df = pd.read_csv(CSV_FILE)
+    df = df.reset_index(drop=True)
+    embeddings = np.load(NPY_FILE)
+
+    return df, embeddings
 
 
 @st.cache_resource
@@ -290,3 +310,4 @@ if "selected_college" in st.session_state and st.session_state.selected_college:
             short = review[:200] + "..." if len(review) > 200 else review
             with st.expander(short):
                 st.markdown(f'<div class="review-box">{review}</div>', unsafe_allow_html=True)
+
