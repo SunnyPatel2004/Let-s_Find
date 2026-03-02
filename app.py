@@ -102,6 +102,12 @@ st.markdown("""
 
 
 # LOAD DATA
+import os
+import requests
+import pandas as pd
+import numpy as np
+import streamlit as st
+
 CSV_URL = "https://drive.google.com/uc?id=13-hCeBPjFaG2ykb22ihESJ4_zpfYsqBq"
 NPY_URL = "https://drive.google.com/uc?id=1ChBVHpr3Cj8QW_rp3j2NtFKBwGzEmBsI"
 
@@ -109,26 +115,41 @@ CSV_FILE = "Recommendation.csv"
 NPY_FILE = "review_embeddings.npy"
 
 
-def download_file(url, filename):
-    if not os.path.exists(filename):
-        with st.spinner(f"Downloading {filename}... (first run only)"):
-            r = requests.get(url)
-            with open(filename, "wb") as f:
-                f.write(r.content)
+# Google Drive large file downloader
+def download_file_from_drive(url, filename):
+    if os.path.exists(filename):
+        return
+
+    with st.spinner(f"Downloading {filename} (first run only)..."):
+        session = requests.Session()
+        response = session.get(url, stream=True)
+
+        # handle large-file confirmation
+        for key, value in response.cookies.items():
+            if key.startswith("download_warning"):
+                confirm_url = url + "&confirm=" + value
+                response = session.get(confirm_url, stream=True)
+                break
+
+        with open(filename, "wb") as f:
+            for chunk in response.iter_content(32768):
+                if chunk:
+                    f.write(chunk)
 
 
 @st.cache_data
 def load_data():
-    # download files if not present
-    download_file(CSV_URL, CSV_FILE)
-    download_file(NPY_URL, NPY_FILE)
+    download_file_from_drive(CSV_URL, CSV_FILE)
+    download_file_from_drive(NPY_URL, NPY_FILE)
 
-    # load normally
     df = pd.read_csv(CSV_FILE)
     df = df.reset_index(drop=True)
+
     embeddings = np.load(NPY_FILE)
 
     return df, embeddings
+)
+
 
 
 @st.cache_resource
@@ -310,4 +331,5 @@ if "selected_college" in st.session_state and st.session_state.selected_college:
             short = review[:200] + "..." if len(review) > 200 else review
             with st.expander(short):
                 st.markdown(f'<div class="review-box">{review}</div>', unsafe_allow_html=True)
+
 
