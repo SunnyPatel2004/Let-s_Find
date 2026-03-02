@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly as px
+import plotly.express as px
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import os
@@ -309,4 +309,5 @@ if "selected_college" in st.session_state and st.session_state.selected_college:
             short = review[:200] + "..." if len(review) > 200 else review
             with st.expander(short):
                 st.markdown(f'<div class="review-box">{review}</div>', unsafe_allow_html=True)
+
 
