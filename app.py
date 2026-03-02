@@ -283,19 +283,44 @@ if "selected_college" in st.session_state and st.session_state.selected_college:
         if available:
             avg_df = college_df[available].mean().reset_index()
             avg_df.columns = ["Category", "Score"]
-
-            fig = px.bar(avg_df, x="Category", y="Score", text="Score", range_y=[0,5])
-            fig.update_traces(texttemplate="%{text:.2f}", textposition="outside")
-
+        
+            # pre-format labels (fix for deployment rendering)
+            avg_df["Label"] = avg_df["Score"].map(lambda x: f"{x:.2f}")
+        
+            fig = px.bar(
+                avg_df,
+                x="Category",
+                y="Score",
+                text="Label",
+                range_y=[0,5],
+            )
+        
+            # Modern bars
+            fig.update_traces(
+                marker=dict(
+                    color="#2563eb",
+                    line=dict(color="#1e3a8a", width=1.5)
+                ),
+                textposition="outside",
+                hovertemplate="<b>%{x}</b><br>Score: %{y:.2f}<extra></extra>"
+            )
+        
+            # Dashboard layout styling
             fig.update_layout(
+                height=420,
+                margin=dict(l=10, r=10, t=40, b=10),
                 plot_bgcolor="rgba(0,0,0,0)",
                 paper_bgcolor="rgba(0,0,0,0)",
-                xaxis_title="Aspects",
-                yaxis_title="Score (Out of 5)",
+                xaxis_title=None,
+                yaxis_title="Rating (out of 5)",
+                yaxis=dict(showgrid=True, gridcolor="rgba(0,0,0,0.08)"),
+                xaxis=dict(showgrid=False),
+                font=dict(size=14),
                 showlegend=False
             )
+        
+            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
-            st.plotly_chart(fig, use_container_width=True)
 
         st.markdown("### Reviews")
 
@@ -304,4 +329,5 @@ if "selected_college" in st.session_state and st.session_state.selected_college:
             short = review[:200] + "..." if len(review) > 200 else review
             with st.expander(short):
                 st.markdown(f'<div class="review-box">{review}</div>', unsafe_allow_html=True)
+
 
