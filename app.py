@@ -319,7 +319,7 @@ if "selected_college" in st.session_state and st.session_state.selected_college:
                 showlegend=False
             )
         
-            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+            st.plotly_chart(fig, use_container_width=True)
 
 
         st.markdown("### Reviews")
@@ -329,5 +329,6 @@ if "selected_college" in st.session_state and st.session_state.selected_college:
             short = review[:200] + "..." if len(review) > 200 else review
             with st.expander(short):
                 st.markdown(f'<div class="review-box">{review}</div>', unsafe_allow_html=True)
+
 
 
