@@ -1,8 +1,10 @@
-streamlit
+streamlit==1.33.0
 pandas
 numpy
-plotly
 scikit-learn
+plotly
 sentence-transformers
 gdown
+
+--extra-index-url https://download.pytorch.org/whl/cpu
 torch
